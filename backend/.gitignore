@@ -1,4 +1,6 @@
 cache/
 out/
 /node_modules
-yarn.lock
+yarn.
+.env
+package-lock.json
