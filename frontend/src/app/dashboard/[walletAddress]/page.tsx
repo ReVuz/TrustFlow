@@ -4,8 +4,8 @@ import CampaignCard from "@/app/components/CampaignCard";
 import { CROWDFUNDING_FACTORY } from "@/app/constants/contracts";
 import { useState } from "react";
 import { defineChain, getContract } from "thirdweb";
-import { deployPublishedContract } from "thirdweb/deploys";
 import { useActiveAccount, useReadContract } from "thirdweb/react";
+import { prepareContractCall, sendTransaction, waitForReceipt } from "thirdweb";
 
 export default function DashboardPage() {
   const account = useActiveAccount();
@@ -71,25 +71,35 @@ const CreateCampaignModal = ({ setIsModalOpen }: CreateCampaignModalProps) => {
     const handleDeployContract = async() =>{
         setIsDeployingContract(true);
         try{
-
-            const contractAddress = await deployPublishedContract({
+            const factoryContract = getContract({
                 client: client,
                 chain: defineChain(7001),
-                account: account!,
-                contractId:"TrustFlow",
-                contractParams:{
-                    campaignName,
-                    campaignDescription,
-                    campaignGoal,
-                    campaignDeadline
-                },
-                publisher:"0x43104B8D7667cA1Dc01fD3881354F8B22f423c45",
-                version: 'latest',
+                address: CROWDFUNDING_FACTORY,
             });
-            alert('Campaign Created Successfully at address: '+ contractAddress);
+
+            const transaction = prepareContractCall({
+                contract: factoryContract,
+                method: "function createCampaign(string _name, string _description, uint256 _goal, uint256 _durationInDays)",
+                params: [campaignName, campaignDescription, BigInt(campaignGoal), BigInt(campaignDeadline)]
+            });
+
+            const { transactionHash } = await sendTransaction({
+                transaction,
+                account: account!
+            });
+
+            const receipt = await waitForReceipt({
+                client,
+                chain: defineChain(7001),
+                transactionHash
+            });
+
+            alert('Campaign Created Successfully! Transaction hash: ' + transactionHash);
 
         }catch(error){
             console.error(error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            alert('Error creating campaign: ' + errorMessage);
         }finally{
             setIsDeployingContract(false);
             setIsModalOpen(false);
@@ -159,6 +169,6 @@ const CreateCampaignModal = ({ setIsModalOpen }: CreateCampaignModalProps) => {
                 </div>
             </div>
         </div>
-                
+
     )
 };
